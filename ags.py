@@ -1,21 +1,28 @@
 import random
 import math
+import bisect
 
+iteraciones = 500
 d = 2
 precision = 9
+pc = 0.5
+pm = 0.1
+tamanio_poblacion = 100
 
-def obtener_fenotipo(genotipo):
-    fenotipo = 0
-    for i, g in enumerate(genotipo, start=1):
-        fenotipo += g * (2 ** -i)
-    return fenotipo
+def bit_string_to_float(bits_string):
+    flotante = 0
+    for i, b in enumerate(bits_string, start=1):
+        flotante += b * (2 ** -i)
+    return flotante
 
 def normaliza_fenotipo(fenotipo):
     return fenotipo * 1000 - 500
 
+def genotipo_to_fenotipo(genotipo):
+    return list(map(lambda x: normaliza_fenotipo(bit_string_to_float(x)), break_list(genotipo, precision)))
+
 def fitness(genotipo, f):
-    fenotipo_normalizado = map(lambda x : normaliza_fenotipo(obtener_fenotipo(x)), break_list(genotipo, precision))
-    return f(fenotipo_normalizado)
+    return f(genotipo_to_fenotipo(genotipo))
 
 """
 Descompone una lista l en sublistas de tamaño n
@@ -43,7 +50,94 @@ def schwefel(vector):
         result += x * math.sin(math.sqrt(abs(x)))
     return result
 
-# Se van a usar arreglos de tamaño 9 para la precisión de 6 decimales 
-individuo = [random.choice([0,1]) for i in range(precision * d)]
-print(individuo, fitness(individuo, schwefel))
+"""
+Genera un individuo aleatorio
+"""
+def genera_individuo(precision, d):
+    return [random.choice([0,1]) for i in range(precision * d)]
+
+def algoritmo_evolutivo_estandar():
+    poblacion = [genera_individuo(precision, d) for i in range(tamanio_poblacion)]
+    evaluacion = evalua_poblacion(poblacion, schwefel) 
+    nueva_poblacion = []
+    show_best(evaluacion, poblacion, 0)
+    for iteracion in range(iteraciones):
+        for i in range(tamanio_poblacion // 2):
+            p1, p2 = selecciona_padres(poblacion, evaluacion)
+            if random.random() < pc:
+                h1, h2 = recombina(p1, p2)
+            else:
+                h1, h2 = p1, p2 
+            map(lambda g : muta(g, pm), [h1, h2])
+            nueva_poblacion = nueva_poblacion + [h1, h2]
+        poblacion = nueva_poblacion
+        evaluacion = evalua_poblacion(poblacion, schwefel) 
+        show_best(evaluacion, poblacion, iteracion + 1)
+
+def show_best(evaluacion, poblacion, generacion):
+    indice = evaluacion.index(max(evaluacion))
+    genotipo = poblacion[indice]
+    fenotipo = genotipo_to_fenotipo(genotipo)
+    valor = schwefel(fenotipo)
+    print("*" * 20)
+    print("Generación ", generacion)
+    print("Genotipo: ", genotipo)
+    print("Fenotipo: ", fenotipo)
+    print("Schwefel: ", valor)
+
+def evalua_poblacion(poblacion, f):
+    evaluados = list(map(lambda g : fitness(g, f), poblacion))
+    return ajuste(evaluados)
+
+def selecciona_padres(poblacion, evaluacion):
+    i1 = ruleta(evaluacion)
+    p1 = poblacion[i1]
+    new_poblacion = remove_element(poblacion, i1)
+    new_evaluacion = remove_element(evaluacion, i1)
+    i2 = ruleta(new_evaluacion)
+    p2 = new_poblacion[i2]
+    return p1, p2
+
+def remove_element(lista, indice):
+    return lista[:indice] + lista[indice + 1:]
+
+def recombina(p1, p2):
+    indice = random.randint(0, len(p1))
+    h1 = p1[:indice] + p2[indice:]
+    h2 = p2[:indice] + p1[indice:]
+    return h1, h2
+
+def muta(genotipo, pm):
+    for i, g in enumerate(genotipo):
+        if random.random() < pm:
+            genotipo[i] = complemento(g) 
+
+def complemento(n):
+    if n == 0:
+        return 1
+    else:
+        return 0
+    
+def ruleta(lista):
+    acc_list = lista_acumulativa(lista)
+    aleatorio = random.randint(1, math.floor(acc_list[-1]))
+    index = bisect.bisect_left(acc_list, aleatorio)
+    return index
+
+def ajuste(lista):
+    minimo = min(lista)
+    if minimo < 0:
+        agregado = abs(minimo) + 1
+        return list(map(lambda x : x + agregado, lista))
+    return lista
+
+def lista_acumulativa(lista):
+    acc = 0
+    acc_list = []
+    for e in lista:
+        acc += e
+        acc_list.append(acc)
+    return acc_list
+
+algoritmo_evolutivo_estandar()
 
