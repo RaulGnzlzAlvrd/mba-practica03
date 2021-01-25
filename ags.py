@@ -1,12 +1,15 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import random
 import math
 import bisect
 
 iteraciones = 500
 d = 2
-precision = 9
+precision = 9 # 9 es para 6 decimales de precision
 pc = 0.5
-pm = 0.1
+pm = 0.01
 tamanio_poblacion = 100
 
 def bit_string_to_float(bits_string):
@@ -56,12 +59,25 @@ Genera un individuo aleatorio
 def genera_individuo(precision, d):
     return [random.choice([0,1]) for i in range(precision * d)]
 
+def average(l):
+    return sum(l) / len(l)
+
 def algoritmo_evolutivo_estandar():
     poblacion = [genera_individuo(precision, d) for i in range(tamanio_poblacion)]
-    evaluacion = evalua_poblacion(poblacion, schwefel) 
+    fenotipos = list(map(lambda g: genotipo_to_fenotipo(g), poblacion))
+    evaluados = list(map(lambda f: schwefel(f), fenotipos))
+    evaluacion = ajuste(evaluados) 
     nueva_poblacion = []
-    show_best(evaluacion, poblacion, 0)
+
+    best = show_best(evaluacion, poblacion, 0, verbose=True)
+    mejores = [best[-1]]
+    promedios = [average(evaluados)]
+    generaciones = [(fenotipos, evaluados)]
+
     for iteracion in range(iteraciones):
+        if iteracion in [10, 50, 100]:
+            generaciones.append((fenotipos, evaluados))
+
         for i in range(tamanio_poblacion // 2):
             p1, p2 = selecciona_padres(poblacion, evaluacion)
             if random.random() < pc:
@@ -70,25 +86,30 @@ def algoritmo_evolutivo_estandar():
                 h1, h2 = p1, p2 
             map(lambda g : muta(g, pm), [h1, h2])
             nueva_poblacion = nueva_poblacion + [h1, h2]
-        poblacion = nueva_poblacion
-        nueva_poblacion = []
-        evaluacion = evalua_poblacion(poblacion, schwefel) 
-        show_best(evaluacion, poblacion, iteracion + 1)
 
-def show_best(evaluacion, poblacion, generacion):
+        poblacion = nueva_poblacion
+        fenotipos = list(map(lambda g: genotipo_to_fenotipo(g), poblacion))
+        evaluados = list(map(lambda f: schwefel(f), fenotipos))
+        nueva_poblacion = []
+        
+        evaluacion = ajuste(evaluados) 
+        best = show_best(evaluacion, poblacion, iteracion + 1, verbose=True)
+        mejores.append(best[-1])
+        promedios.append(average(evaluados))
+    return mejores, promedios, generaciones
+
+def show_best(evaluacion, poblacion, generacion, verbose = False):
     indice = evaluacion.index(max(evaluacion))
     genotipo = poblacion[indice]
     fenotipo = genotipo_to_fenotipo(genotipo)
     valor = schwefel(fenotipo)
-    print("*" * 20)
-    print("Generación ", generacion)
-    print("Genotipo: ", genotipo)
-    print("Fenotipo: ", fenotipo)
-    print("Schwefel: ", valor)
-
-def evalua_poblacion(poblacion, f):
-    evaluados = list(map(lambda g : fitness(g, f), poblacion))
-    return ajuste(evaluados)
+    if verbose:
+        print("*" * 20)
+        print("Generación ", generacion)
+        print("Genotipo: ", genotipo)
+        print("Fenotipo: ", fenotipo)
+        print("Schwefel: ", valor)
+    return generacion, genotipo, fenotipo, valor
 
 def selecciona_padres(poblacion, evaluacion):
     i1 = ruleta(evaluacion)
@@ -140,5 +161,41 @@ def lista_acumulativa(lista):
         acc_list.append(acc)
     return acc_list
 
-algoritmo_evolutivo_estandar()
+data = algoritmo_evolutivo_estandar()
+
+plt.plot(data[0], label='Best')
+plt.ylabel('fitness')
+plt.xlabel('generacion')
+
+plt.plot(data[1], label='Average')
+plt.ylabel('fitness')
+plt.xlabel('generacion')
+
+plt.legend()
+plt.show()
+
+def z_fun(x, y):
+    X = x * np.sin(np.sqrt(np.abs(x)))
+    Y = y * np.sin(np.sqrt(np.abs(y)))
+    return X + Y
+
+fig = plt.figure()
+ax = plt.axes(projection="3d")
+x = np.linspace(-500, 500)
+y = np.linspace(-500, 500)
+X, Y = np.meshgrid(x, y)
+Z = z_fun(X, Y)
+
+ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap='coolwarm', edgecolor='none')
+ax.set_xlabel('x')
+ax.set_ylabel('y')
+ax.set_zlabel('z')
+
+colors = ['red', 'blue', 'green', 'yellow']
+markers = ['o', '^', '*', 'x']
+for i, (xy, z) in enumerate(data[2]):
+    xs = np.array(xy)[:,0]
+    ys = np.array(xy)[:,1]
+    ax.scatter(xs, ys, z, c=colors[i], marker=markers[i])
+plt.show()
 
