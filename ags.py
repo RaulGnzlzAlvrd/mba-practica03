@@ -71,6 +71,7 @@ def algoritmo_evolutivo_estandar():
             map(lambda g : muta(g, pm), [h1, h2])
             nueva_poblacion = nueva_poblacion + [h1, h2]
         poblacion = nueva_poblacion
+        nueva_poblacion = []
         evaluacion = evalua_poblacion(poblacion, schwefel) 
         show_best(evaluacion, poblacion, iteracion + 1)
 
