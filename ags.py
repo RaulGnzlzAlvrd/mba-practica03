@@ -9,7 +9,7 @@ iteraciones = 500
 d = 2
 precision = 9 # 9 es para 6 decimales de precision
 pc = 0.5
-pm = 0.01
+pm = 0.1
 tamanio_poblacion = 100
 
 def bit_string_to_float(bits_string):
@@ -174,25 +174,25 @@ def z_fun(x, y):
 	Y = y * np.sin(np.sqrt(np.abs(y)))
 	return X + Y
 
-fig = plt.figure()
-ax = plt.axes(projection="3d")
-x = np.linspace(-500, 500)
-y = np.linspace(-500, 500)
-X, Y = np.meshgrid(x, y)
-Z = z_fun(X, Y)
-
-ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap='coolwarm', edgecolor='none')
-ax.set_xlabel('x')
-ax.set_ylabel('y')
-ax.set_zlabel('z')
-
-colors = ['red', 'blue', 'green', 'yellow']
-markers = ['o', '^', '*', 'x']
+colors = ['black', 'blue', 'green', 'yellow']
+markers = ['h', '^', '*', 'x']
 gen = [1, 10, 50, 100]
 for i, (xy, z) in enumerate(data[2]):
+	fig = plt.figure()
+	ax = plt.axes(projection="3d")
+	x = np.linspace(-500, 500)
+	y = np.linspace(-500, 500)
+	X, Y = np.meshgrid(x, y)
+	Z = z_fun(X, Y)
+
+	ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap='coolwarm', edgecolor='none')
+	ax.set_xlabel('x')
+	ax.set_ylabel('y')
+	ax.set_zlabel('z')
+
 	xs = np.array(xy)[:,0]
 	ys = np.array(xy)[:,1]
-	ax.scatter(xs, ys, z, c=colors[i], marker=markers[i], label="Generacion: " + str(gen[i]))
-plt.legend()
-plt.show()
+	ax.scatter(xs, ys, np.array(z) + 100, c=colors[i], marker=markers[i], label="Generacion: " + str(gen[i]))
+	plt.legend()
+	plt.show()
 
