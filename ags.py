@@ -9,8 +9,8 @@ iteraciones = 500
 d = 2
 precision = 9 # 9 es para 6 decimales de precision
 pc = 0.5
-pm = 0.1
-tamanio_poblacion = 100
+pm = 0.01
+tamanio_poblacion = 100 
 
 def bit_string_to_float(bits_string):
 	flotante = 0
