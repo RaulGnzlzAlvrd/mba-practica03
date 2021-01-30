@@ -35,9 +35,6 @@ to-report best-tree
  report best
 end
 
-
-
-
 to setup
   clear-all
   reset-ticks
@@ -98,16 +95,12 @@ to-report terminal-set
 end
 
 to-report create-tree [depth]
-  ifelse depth = 0[
-    report (list (one-of terminal-set))
-  ][
-    let function one-of functional-set
-    ifelse function = "PROGN2"[
-      report (list function create-tree (depth - 1)  create-tree (depth - 1) )
-    ][
-      report (list function create-tree (depth - 1)  create-tree (depth - 1) create-tree (depth - 1) )
-    ]
-  ]
+  ifelse (depth = 0) or (random-float 1 > random-float 1)
+  [ report (list (one-of terminal-set)) ]
+  [ let function one-of functional-set
+    ifelse function != "PROGN3"
+    [ report (list function (create-tree (depth - 1))  (create-tree (depth - 1))) ]
+    [ report (list function (create-tree (depth - 1))  (create-tree (depth - 1)) (create-tree (depth - 1))) ] ]
 end
 
 to create-agent-tree
@@ -559,10 +552,10 @@ ticks
 30.0
 
 BUTTON
-108
-117
-175
-151
+19
+81
+86
+115
 NIL
 setup
 NIL
@@ -576,10 +569,10 @@ NIL
 1
 
 BUTTON
-85
-302
-148
-335
+118
+82
+181
+115
 NIL
 Go
 T
@@ -593,18 +586,48 @@ NIL
 1
 
 SLIDER
-8
-188
-180
-221
+13
+32
+185
+65
 population-size
 population-size
-1
-800
-11.0
+10
+600
+10.0
 10
 1
 NIL
+HORIZONTAL
+
+SLIDER
+11
+470
+189
+503
+initial-depth
+initial-depth
+1
+15
+3.0
+1
+1
+levels
+HORIZONTAL
+
+SLIDER
+12
+512
+184
+545
+max-depth
+max-depth
+1
+25
+10.0
+1
+1
+levels
 HORIZONTAL
 
 @#$#@#$#@
