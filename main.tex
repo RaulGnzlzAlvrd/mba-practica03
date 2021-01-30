@@ -69,6 +69,27 @@
             \end{figure}
         \end{enumerate}
 
-        \item Genere otros experimentos cambiando la tasa de recombinación y de mutación. A partir de su experiencia trate de ajustar los parámetros para que el AGS tenga el mejor desempeño posible Graficar como en los puntos anteriores. ¿Cuáles fueron los parámetros con los que encontraron rápidamente el máximo global? Explique.
+        \item Genere otros experimentos cambiando la tasa de recombinación y de mutación. A partir de su experiencia trate de ajustar los parámetros para que el AGS tenga el mejor desempeño posible y graficar como en los puntos anteriores. ¿Cuáles fueron los parámetros con los que encontraron rápidamente el máximo global? Explique.
+        
+        \begin{enumerate}[label=\arabic*.]
+            \item Generación vs Fitness:
+            \begin{figure}[H]
+                \centering
+                \includegraphics[width=8cm]{images/parametros-ajustados/parametros-gen-vs-fitness.png}
+                \label{fig:parametros-gen-vs-fit}
+            \end{figure}
+            
+            \item Distintas generaciones:
+            \begin{figure}[H]
+                \centering
+                \includegraphics[width=8cm]{images/parametros-ajustados/parametros-gen001.png}
+                \includegraphics[width=8cm]{images/parametros-ajustados/parametros-gen010.png}
+                \includegraphics[width=8cm]{images/parametros-ajustados/parametros-gen050.png}
+                \includegraphics[width=8cm]{images/parametros-ajustados/parametros-gen100.png}
+                \label{fig:parametros-gen-n}
+            \end{figure}
+        \end{enumerate}
+        
+        Se usaron los parámetros siguientes: $P_c = 0.5$ y $P_m = 0.01$. La taza de mutación se mantuvo en 0.5, ya que al ser el tamaño de la población relativamente grande se alcanzaba a generar muy buenos individuos casi desde las primeras generaciones. Para mantener estos individuos a lo largo de las generaciones solamente se hizo la cruza entre la mitad de los individuos seleccionados. Para la mutación se mantuvo lo más baja posible para que solamente en caso de que al inicio no tengamos individuos buenos puedan cambiar y adaptarse hasta obtener uno relativamente bueno.
     \end{enumerate}
 \end{document}
