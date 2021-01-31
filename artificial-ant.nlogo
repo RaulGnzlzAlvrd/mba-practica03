@@ -4,6 +4,10 @@
 ;;             prog2(ant.turn_right, prog2(ant.turn_left, ant.turn_right))),
 ;;             prog2(ant.if_food_ahead(ant.move_forward, ant.turn_left), ant.move_forward)))
 
+globals [
+  global-best
+]
+
 patches-own [food]
 
 breed [trees tree]
@@ -34,7 +38,6 @@ end
 to setup
   clear-all
   reset-ticks
-
   ask patches
   [ set pcolor white
     set food false ]
@@ -44,6 +47,24 @@ to setup
   [ set instructions (create-tree initial-depth)
     set heading 90
     set current-gen true ]
+
+  ask one-of trees [
+    set global-best (list instructions 0)
+  ]
+end
+
+to run-global-best
+  ask trees [die]
+  create-trees 1 [
+    set instructions (item 0 global-best)
+    set heading 90
+    setxy 0 0
+  ]
+  create-grid
+  ask trees
+  [ while [nmoves < max-allowed-moves]
+    [eval-tree instructions]
+    show nfood ]
 end
 
 to turn-left
@@ -86,6 +107,7 @@ end
 to go
   create-next-gen
   if ticks >= max-generations + 1 [
+    show global-best
     stop
   ]
   ask trees with [current-gen]
@@ -501,8 +523,17 @@ end
 
 to-report get-best
   let best 0
+  let t []
   let best-t (max-one-of trees [nfood])
-  ask best-t [set best nfood]
+  ask best-t [
+    set best nfood
+    set t instructions
+  ]
+
+  if ((item 1 global-best) < best) [
+    set global-best (list t best)
+  ]
+
   report best
 end
 @#$#@#$#@
@@ -675,6 +706,23 @@ true
 PENS
 "Average" 1.0 0 -955883 true "" "plot mean [nfood] of trees"
 "Best" 1.0 0 -13840069 true "" "plot get-best"
+
+BUTTON
+580
+708
+676
+741
+Run best
+run-global-best
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
