@@ -1,59 +1,72 @@
+extensions [ rnd ]
+
 ;; BEST SOLUTION BY KOZA
 ;;if_food_ahead(ant.move_forward, prog3(ant.turn_left,
 ;;             prog2(ant.if_food_ahead(ant.move_forward, ant.turn_right),
 ;;             prog2(ant.turn_right, prog2(ant.turn_left, ant.turn_right))),
 ;;             prog2(ant.if_food_ahead(ant.move_forward, ant.turn_left), ant.move_forward)))
-globals[
-  current-gen
-  old-gen
+
+globals [
+  global-best
 ]
 
-patches-own[food]
-breed [ants ant]
+patches-own [food]
+
 breed [trees tree]
-trees-own[
-  fitness
+trees-own
+[ fitness
   instructions
   nmoves
   nfood
-]
-
+  current-gen ]
 
 to-report best-tree
- let best [
-    "IF_FOOD_AHEAD" ["MOVE"] [
-        "PROGN3" ["LEFT"] [
-            "PROGN2" ["IF_FOOD_AHEAD" ["MOVE"] ["RIGHT"]][
-                "PROGN2"["RIGHT"][
-                "PROGN2"["LEFT"]["RIGHT"]
-                ]
-            ]
-        ]
-      ["PROGN2"["IF_FOOD_AHEAD"["MOVE"]["LEFT"]]["MOVE"]]
-    ]
-  ]
+ let best
+  ["IF_FOOD_AHEAD"
+    ["MOVE"]
+    ["PROGN3"
+      ["LEFT"]
+      ["PROGN2"
+        ["IF_FOOD_AHEAD" ["MOVE"] ["RIGHT"]]
+        ["PROGN2"
+          ["RIGHT"]
+          ["PROGN2" ["LEFT"] ["RIGHT"]]]]
+      ["PROGN2"
+        ["IF_FOOD_AHEAD" ["MOVE"] ["LEFT"]]
+        ["MOVE"]]]]
  report best
 end
-
-
-
 
 to setup
   clear-all
   reset-ticks
-  ask patches[
-    set pcolor white
-  ]
-  create-ants 1[
-    setxy 0 0
-    set shape "bug"
+  ask patches
+  [ set pcolor white
+    set food false ]
+  create-grid
+
+  create-trees population-size
+  [ set instructions (create-tree initial-depth)
     set heading 90
+    set current-gen true ]
+
+  ask one-of trees [
+    set global-best (list instructions 0)
+  ]
+end
+
+to run-global-best
+  ask trees [die]
+  create-trees 1 [
+    set instructions (item 0 global-best)
+    set heading 90
+    setxy 0 0
   ]
   create-grid
-  create-trees population-size[
-    create-agent-tree
-  ]
-  show current-gen
+  ask trees
+  [ while [nmoves < max-allowed-moves]
+    [eval-tree instructions]
+    show nfood ]
 end
 
 to turn-left
@@ -70,23 +83,10 @@ end
 
 to-report if-food-ahead
   let val false
-  ask patch-ahead 1 [
-    if food = true
-    [set val true]
-  ]
+  ask patch-ahead 1
+  [ if food = true
+    [ set val true ] ]
   report val
-end
-
-to progn2 [fn1 fn2]
-  run fn1
-  run fn2
-end
-
-
-to progn3 [fn1 fn2 fn3]
-  run fn1
-  run fn2
-  run fn3
 end
 
 to-report functional-set
@@ -98,226 +98,111 @@ to-report terminal-set
 end
 
 to-report create-tree [depth]
-  ifelse depth = 0[
-    report (list (one-of terminal-set))
-  ][
-    let function one-of functional-set
-    ifelse function = "PROGN2"[
-      report (list function create-tree (depth - 1)  create-tree (depth - 1) )
-    ][
-      report (list function create-tree (depth - 1)  create-tree (depth - 1) create-tree (depth - 1) )
-    ]
-  ]
+  ifelse (depth = 0) or (random-float 1 > random-float 1)
+  [ report (list (one-of terminal-set)) ]
+  [ let function one-of functional-set
+    ifelse function != "PROGN3"
+    [ report (list function (create-tree (depth - 1))  (create-tree (depth - 1))) ]
+    [ report (list function (create-tree (depth - 1))  (create-tree (depth - 1)) (create-tree (depth - 1))) ] ]
 end
-
-to create-agent-tree
-  set instructions (create-tree 4)
-end
-
-to create-population [psize dtree]
-  set current-gen []
-  while [psize > 0][
-    let ctree create-tree dtree
-    set psize (psize - 1)
-    set current-gen  lput  ctree current-gen
-  ]
-end
-
 
 to go
-  ;;let tree create-tree 3
-  ask ants[
-    ;;eval-tree best-tree
-
+  create-next-gen
+  if ticks >= max-generations + 1 [
+    show global-best
+    stop
   ]
-  ask trees[
-    ;;eval-tree instructions
-    let food-list create-array-food
-    eval-list-tree best-tree  food-list
+  ask trees with [current-gen]
+  [ ;;show "Excecuting"
+    ;;show instructions
+    while [nmoves < max-allowed-moves]
+    [eval-tree instructions]
+    create-grid ]
+
+  tick
+end
+
+to create-next-gen
+  ask trees with [current-gen] [set current-gen false]
+
+  while [count (trees with [current-gen]) < population-size]
+  [ ifelse random-float 1 < pc
+    [ let p1 rnd:weighted-one-of (trees with [not current-gen]) [nfood]
+      let p2 rnd:weighted-one-of (trees with [not current-gen]) [nfood]
+
+      let instructions1 []
+      let instructions2 []
+
+      ask p1 [set instructions1 instructions]
+      ask p2 [set instructions2 instructions]
+      let childs sexual-reproduction instructions1 instructions2
+
+      ask p1 [
+        hatch 1 [
+          set current-gen true
+          set instructions (item 0 childs)
+          set nmoves 0
+          set nfood 0
+        ]
+      ]
+
+      ask p2 [
+        hatch 1 [
+          set current-gen true
+          set instructions (item 1 childs)
+          set nmoves 0
+          set nfood 0
+        ]
+      ]
+    ]
+    [ let p1 rnd:weighted-one-of (trees with [not current-gen]) [nfood]
+      ask p1 [hatch 1 [
+        set current-gen true
+        set nmoves 0
+        set nfood 0 ]] ] ]
+
+  ask trees with [not current-gen] [die]
+  ask trees with [current-gen] [
+    set heading 90
+    setxy 0 0
   ]
 end
 
 to exec-terminals [name]
-  ifelse name = "LEFT"[
-    turn-left
-  ]
-  [ ifelse name = "RIGHT" [
-      turn-right
-    ]
-    [if name = "MOVE" [move]]
-  ]
-
+  ( ifelse
+    name = "LEFT"  [turn-left]
+    name = "RIGHT" [turn-right]
+    name = "MOVE"  [move] )
 end
 
 to eval-tree [treel] ;; tree of type list GRAPHIC EVAL
-  ifelse length treel = 1[
-    exec-terminals first treel
-    ;; IF_FOOD_AHEAD
-    ask patch-here [
-      if food = true [
-        empty
-
+  if nmoves >= max-allowed-moves [stop]
+  ( ifelse
+    length treel = 1
+    [ exec-terminals first treel
+      set nmoves (nmoves + 1)
+      let food-here false
+      ask patch-here
+      [ if food = true
+        [ set food-here true
+          empty ] ]
+      if food-here [
+        set nfood (nfood + 1)
       ]
     ]
-  ]
-  [ ifelse first treel = "PROGN3"[
-      eval-tree (item 1 treel) eval-tree (item 2 treel) eval-tree (item 3 treel)
-    ]
-    [ifelse first treel = "PROGN2"
-      [eval-tree (item 1 treel) eval-tree (item 2 treel)]
-      [
-        let food-ahead if-food-ahead
-        ifelse food-ahead
-        [ eval-tree (item 1 treel) ]
-        [ eval-tree (item 2 treel) ]
-      ]
-    ]
-
-  ]
+    first treel = "PROGN3"
+    [ eval-tree (item 1 treel)
+      eval-tree (item 2 treel)
+      eval-tree (item 3 treel) ]
+    first treel = "PROGN2"
+    [ eval-tree (item 1 treel)
+      eval-tree (item 2 treel) ]
+    first treel = "IF_FOOD_AHEAD"
+    [ let food-ahead if-food-ahead
+      ifelse food-ahead
+      [eval-tree (item 1 treel)]
+      [eval-tree (item 2 treel)] ] )
 end
-
-to eval-list-tree [treel food-list] ;; tree of type list
-  ifelse length treel = 1[
-    exec-terminals first treel
-    ;; COUT terminal move
-    set nmoves nmoves + 1
-    ;; IF_FOOD_AHEAD with list
-    let currentcoord list ycor xcor
-    if member? currentcoord  food-list[
-      set nfood nfood + 1
-      show food-list
-      set food-list remove currentcoord food-list
-      show food-list
-    ]
-  ]
-  [ ifelse first treel = "PROGN3"[
-      eval-list-tree (item 1 treel) food-list eval-list-tree (item 2 treel) food-list eval-list-tree (item 3 treel) food-list
-    ]
-    [ifelse first treel = "PROGN2"
-      [eval-list-tree (item 1 treel) food-list eval-list-tree (item 2 treel) food-list]
-      [
-        let food-ahead if-food-ahead
-        ifelse food-ahead
-        [ eval-list-tree (item 1 treel) food-list ]
-        [ eval-list-tree (item 2 treel) food-list ]
-      ]
-    ]
-  ]
-
-end
-
-to-report fit [movesc foodc]
-  if movesc < 400[
-    report foodc
-  ]
-  report 0
-end
-
-to-report create-array-food
-  let food-list [ [1 0   ]   [2 0   ]   [3 0   ]   [3 -1  ]   [3 -2  ]   [3 -3  ]   [3 -4  ]   [3 -5  ]
-   [4 -5  ]   [5 -5  ]
-   [6 -5  ]
-   [8 -5  ]
-   [9 -5  ]
-   [10 -5 ]
-   [11 -5 ]
-   [12 -5 ]
-   [12 -6 ]
-   [12 -7 ]
-   [12 -8 ]
-   [12 -9 ]
-   [12 -11]
-   [12 -12]
-   [12 -13]
-   [12 -14]
-   [12 -17]
-   [12 -18]
-   [12 -19]
-   [12 -20]
-   [12 -21]
-   [12 -22]
-   [12 -23]
-   [11 -24]
-   [10 -24]
-   [9  -24]
-   [8  -24]
-   [7  -24]
-   [4  -24]
-   [3  -24]
-   [1  -25]
-   [1  -26]
-   [1  -27]
-   [1  -28]
-   [2  -30]
-   [3  -30]
-   [4  -30]
-   [5  -30]
-   [7  -29]
-   [7  -28]
-   [8  -27]
-   [9  -27]
-   [10 -27]
-   [11 -27]
-   [12 -27]
-   [13 -27]
-   [14 -27]
-   [16 -26]
-   [16 -25]
-   [16 -24]
-   [16 -21]
-   [16 -20]
-   [16 -19]
-   [16 -18]
-   [17 -15]
-   [20 -14]
-   [20 -13]
-
-
-   [20 -10]
-   [20 -9 ]
-   [20 -8 ]
-   [20 -7 ]
-
-
-   [21 -5 ]
-   [22 -5 ]
-
-
-   [24 -4 ]
-   [24 -3 ]
-
-
-   [25 -2 ]
-   [26 -2 ]
-   [27 -2 ]
-
-
-   [29 -3 ]
-   [29 -4 ]
-
-
-   [29 -6 ]
-
-
-   [29 -9 ]
-
-
-   [29 -12]
-
-
-   [28 -14]
-   [27 -14]
-   [26 -14]
-
-
-   [23 -15]
-   [24 -18]
-   [27 -19]
-   [26 -22]
-   [23 -23]  ]
-  report food-list
-end
-
 
 to create-grid
   ask patch 1 0   [food-trail] ;;1
@@ -530,11 +415,134 @@ to empty
   set pcolor yellow
   set food false
 end
+
+;; TODO: Terminar esta función
+to-report mutate-tree [treel]
+  report (random (length unnest treel))
+end
+
+to-report sexual-reproduction [t1 t2]
+  let point1 random-index t1
+  let point2 random-index t2
+
+  let subtree1 (item 0 (get-subtree-at t1 point1))
+  let subtree2 (item 0 (get-subtree-at t2 point2))
+
+  let child1 (item 0 insert-in-tree t1 point1 subtree2)
+  let child2 (item 0 insert-in-tree t2 point2 subtree1)
+
+  if not valid-tree child1 max-depth [set child1 t1]
+  if not valid-tree child2 max-depth [set child2 t2]
+  report (list child1 child2)
+end
+
+to-report unnest [xs]
+  if empty? xs [report []]
+  if is-list? (first xs) [report sentence (unnest first xs) (unnest (remove-item 0 xs))]
+  report sentence (list (first xs)) (unnest (remove-item 0 xs))
+end
+
+to-report random-index [t]
+  report random (length (unnest t))
+end
+
+to-report insert-in-tree [tree1 index subtree]
+  ( ifelse
+    index = 0 [report (list subtree index)]
+    length tree1 = 1 [report (list tree1 index)]
+    [ let i1 (insert-in-tree (item 1 tree1) (index - 1) subtree)
+      set index (item 1 i1)
+      if index = 0 [report (list (replace-item 1 tree1 (item 0 i1)) index)]
+
+      let i2 (insert-in-tree (item 2 tree1) (index - 1) subtree)
+      set index (item 1 i2)
+      if index = 0 [report (list (replace-item 2 tree1 (item 0 i2)) index)]
+
+      if first tree1 = "PROGN3"
+      [ let i3 (insert-in-tree (item 3 tree1) (index - 1) subtree)
+        set index (item 1 i3)
+        if index = 0 [report (list (replace-item 3 tree1 (item 0 i3)) index)] ]
+      report (list tree1 index)
+    ]
+  )
+end
+
+to-report get-subtree-at [t index]
+  ( ifelse
+    index = 0 [report (list t index)]
+    length t = 1 [report (list t index)]
+    [ let i1 (get-subtree-at (item 1 t) (index - 1))
+      set index (item 1 i1)
+      if index = 0 [report i1]
+
+      let i2 (get-subtree-at (item 2 t) (index - 1))
+      set index (item 1 i2)
+      if index = 0 [report i2]
+
+      if first t = "PROGN3"
+      [ let i3 (get-subtree-at (item 3 t) (index - 1))
+        set index (item 1 i3)
+        if index = 0 [report i3] ]
+      report (list t index)
+    ]
+  )
+end
+
+to-report valid-tree [t depth]
+  report (get-depth t) <= depth
+end
+
+to-report get-depth [t]
+  ifelse length t = 1
+  [report 0]
+  [ let d1 get-depth (item 1 t)
+    let d2 get-depth (item 2 t)
+    ifelse first t = "PROGN3"
+    [ let d3 get-depth (item 3 t)
+      report max (list d1 d2 d3) + 1]
+    [ report max (list d1 d2) + 1] ]
+end
+
+;; TODO: Eliminar esta función
+to test
+  let depth 3
+
+  let t1 (create-tree depth)
+  show "t1"
+  show t1
+
+  let t2 (create-tree depth)
+  show "t2"
+  show t2
+
+  let childs (sexual-reproduction t1 t2)
+  show "c1"
+  show (item 0 childs)
+  show "c2"
+  show (item 1 childs)
+end
+
+
+to-report get-best
+  let best 0
+  let t []
+  let best-t (max-one-of trees [nfood])
+  ask best-t [
+    set best nfood
+    set t instructions
+  ]
+
+  if ((item 1 global-best) < best) [
+    set global-best (list t best)
+  ]
+
+  report best
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
-210
+235
 23
-801
+826
 615
 -1
 -1
@@ -555,14 +563,14 @@ GRAPHICS-WINDOW
 0
 0
 1
-ticks
+generation
 30.0
 
 BUTTON
-108
-117
-175
-151
+19
+81
+86
+115
 NIL
 setup
 NIL
@@ -576,10 +584,10 @@ NIL
 1
 
 BUTTON
-85
-302
-148
-335
+118
+82
+181
+115
 NIL
 Go
 T
@@ -593,19 +601,130 @@ NIL
 1
 
 SLIDER
-8
-188
-180
-221
+13
+32
+185
+65
 population-size
 population-size
-1
-800
-11.0
+10
+600
+500.0
 10
 1
 NIL
 HORIZONTAL
+
+SLIDER
+11
+470
+189
+503
+initial-depth
+initial-depth
+1
+15
+6.0
+1
+1
+levels
+HORIZONTAL
+
+SLIDER
+12
+512
+184
+545
+max-depth
+max-depth
+1
+25
+17.0
+1
+1
+levels
+HORIZONTAL
+
+SLIDER
+11
+420
+215
+453
+max-allowed-moves
+max-allowed-moves
+100
+1000
+400.0
+50
+1
+NIL
+HORIZONTAL
+
+SLIDER
+17
+282
+189
+315
+pc
+pc
+0
+1
+0.9
+0.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+21
+235
+193
+268
+max-generations
+max-generations
+1
+55
+51.0
+1
+1
+NIL
+HORIZONTAL
+
+PLOT
+20
+630
+463
+826
+Generación vs Fitness
+generacion
+fitness
+0.0
+10.0
+0.0
+10.0
+true
+true
+"" ""
+PENS
+"Average" 1.0 0 -955883 true "" "plot mean [nfood] of trees"
+"Best" 1.0 0 -13840069 true "" "plot get-best"
+
+BUTTON
+580
+708
+676
+741
+Run best
+run-global-best
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
