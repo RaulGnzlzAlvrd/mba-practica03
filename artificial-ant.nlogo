@@ -340,6 +340,57 @@ to empty
   set pcolor yellow
   set food false
 end
+
+;; TODO: Terminar esta función
+to-report mutate-tree [treel]
+  report (random (length unnest treel))
+end
+
+to-report unnest [xs]
+  if empty? xs [report []]
+  if is-list? (first xs) [report sentence (unnest first xs) (unnest (remove-item 0 xs))]
+  report sentence (list (first xs)) (unnest (remove-item 0 xs))
+end
+
+to-report insert-in-tree [tree1 index subtree]
+  ( ifelse
+    index = 0 [report (list subtree index)]
+    length tree1 = 1 [report (list tree1 index)]
+    [ let i1 (insert-in-tree (item 1 tree1) (index - 1) subtree)
+      set index (item 1 i1)
+      if index = 0 [report (list (replace-item 1 tree1 (item 0 i1)) index)]
+
+      let i2 (insert-in-tree (item 2 tree1) (index - 1) subtree)
+      set index (item 1 i2)
+      if index = 0 [report (list (replace-item 2 tree1 (item 0 i2)) index)]
+
+      if first tree1 = "PROGN3"
+      [ let i3 (insert-in-tree (item 3 tree1) (index - 1) subtree)
+        set index (item 1 i3)
+        if index = 0 [report (list (replace-item 3 tree1 (item 0 i3)) index)] ]
+      report (list tree1 index)
+    ]
+  )
+end
+
+;; TODO: Eliminar esta función
+to test-insert-in-tree
+  let t (create-tree 3)
+  show "original"
+  show t
+
+  let index random (length (unnest t))
+  show "index"
+  show index
+
+  let subtree (create-tree 3)
+  show "subtree"
+  show subtree
+
+  let modified (insert-in-tree t index subtree)
+  show "result"
+  show (item 0 modified)
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
 235
@@ -426,7 +477,7 @@ initial-depth
 initial-depth
 1
 15
-3.0
+6.0
 1
 1
 levels
@@ -441,7 +492,7 @@ max-depth
 max-depth
 1
 25
-10.0
+17.0
 1
 1
 levels
