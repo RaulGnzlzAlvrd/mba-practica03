@@ -4,11 +4,6 @@
 ;;             prog2(ant.turn_right, prog2(ant.turn_left, ant.turn_right))),
 ;;             prog2(ant.if_food_ahead(ant.move_forward, ant.turn_left), ant.move_forward)))
 
-globals
-[ current-gen
-  old-gen
-  generation-count ]
-
 patches-own [food]
 
 breed [trees tree]
@@ -16,7 +11,8 @@ trees-own
 [ fitness
   instructions
   nmoves
-  nfood ]
+  nfood
+  current-gen ]
 
 to-report best-tree
  let best
@@ -46,8 +42,8 @@ to setup
 
   create-trees population-size
   [ set instructions (create-tree initial-depth)
-    set heading 90 ]
-  set current-gen trees
+    set heading 90
+    set current-gen true ]
 end
 
 to turn-left
@@ -88,12 +84,64 @@ to-report create-tree [depth]
 end
 
 to go
-  let gen trees with [nmoves < max-allowed-moves]
-  if not any? gen [stop]
-  ask gen
-  [ while [nmoves < max-allowed-moves] [eval-tree instructions]
+  create-next-gen
+  if ticks >= max-generations + 1 [
+    stop
+  ]
+  ask trees with [current-gen]
+  [ ;;show "Excecuting"
+    ;;show instructions
+    while [nmoves < max-allowed-moves]
+    [eval-tree instructions]
     create-grid ]
+
   tick
+end
+
+to create-next-gen
+  ask trees with [current-gen] [set current-gen false]
+
+  while [count (trees with [current-gen]) < population-size]
+  [ ifelse random-float 1 < pc
+    [ let p1 one-of trees with [not current-gen]
+      let p2 one-of trees with [not current-gen]
+
+      let instructions1 []
+      let instructions2 []
+
+      ask p1 [set instructions1 instructions]
+      ask p2 [set instructions2 instructions]
+      let childs sexual-reproduction instructions1 instructions2
+
+      ask p1 [
+        hatch 1 [
+          set current-gen true
+          set instructions (item 0 childs)
+          set nmoves 0
+          set nfood 0
+        ]
+      ]
+
+      ask p2 [
+        hatch 1 [
+          set current-gen true
+          set instructions (item 1 childs)
+          set nmoves 0
+          set nfood 0
+        ]
+      ]
+    ]
+    [ let p1 one-of trees with [not current-gen]
+      ask p1 [hatch 1 [
+        set current-gen true
+        set nmoves 0
+        set nfood 0 ]] ] ]
+
+  ask trees with [not current-gen] [die]
+  ask trees with [current-gen] [
+    set heading 90
+    setxy 0 0
+  ]
 end
 
 to exec-terminals [name]
@@ -114,7 +162,10 @@ to eval-tree [treel] ;; tree of type list GRAPHIC EVAL
       [ if food = true
         [ set food-here true
           empty ] ]
-      if food-here [set nfood (nfood + 1)]]
+      if food-here [
+        set nfood (nfood + 1)
+      ]
+    ]
     first treel = "PROGN3"
     [ eval-tree (item 1 treel)
       eval-tree (item 2 treel)
@@ -350,20 +401,11 @@ to-report sexual-reproduction [t1 t2]
   let point1 random-index t1
   let point2 random-index t2
 
-  show point1
-  show point2
-
   let subtree1 (item 0 (get-subtree-at t1 point1))
   let subtree2 (item 0 (get-subtree-at t2 point2))
 
-
-
   let child1 (item 0 insert-in-tree t1 point1 subtree2)
   let child2 (item 0 insert-in-tree t2 point2 subtree1)
-
-
-  show child1
-  show child2
 
   if not valid-tree child1 max-depth [set child1 t1]
   if not valid-tree child2 max-depth [set child2 t2]
@@ -455,6 +497,14 @@ to test
   show "c2"
   show (item 1 childs)
 end
+
+
+to-report get-best
+  let best 0
+  let best-t (max-one-of trees [nfood])
+  ask best-t [set best nfood]
+  report best
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
 235
@@ -507,7 +557,7 @@ BUTTON
 115
 NIL
 Go
-NIL
+T
 1
 T
 OBSERVER
@@ -576,6 +626,55 @@ max-allowed-moves
 1
 NIL
 HORIZONTAL
+
+SLIDER
+17
+282
+189
+315
+pc
+pc
+0
+1
+0.8
+0.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+21
+235
+193
+268
+max-generations
+max-generations
+1
+55
+51.0
+1
+1
+NIL
+HORIZONTAL
+
+PLOT
+20
+630
+463
+826
+Generación vs Fitness
+generacion
+fitness
+0.0
+10.0
+0.0
+10.0
+true
+true
+"" ""
+PENS
+"Average" 1.0 0 -955883 true "" "plot mean [nfood] of trees"
+"Best" 1.0 0 -13840069 true "" "plot get-best"
 
 @#$#@#$#@
 ## WHAT IS IT?
