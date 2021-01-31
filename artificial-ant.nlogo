@@ -346,10 +346,38 @@ to-report mutate-tree [treel]
   report (random (length unnest treel))
 end
 
+to-report sexual-reproduction [t1 t2]
+  let point1 random-index t1
+  let point2 random-index t2
+
+  show point1
+  show point2
+
+  let subtree1 (item 0 (get-subtree-at t1 point1))
+  let subtree2 (item 0 (get-subtree-at t2 point2))
+
+
+
+  let child1 (item 0 insert-in-tree t1 point1 subtree2)
+  let child2 (item 0 insert-in-tree t2 point2 subtree1)
+
+
+  show child1
+  show child2
+
+  if not valid-tree child1 max-depth [set child1 t1]
+  if not valid-tree child2 max-depth [set child2 t2]
+  report (list child1 child2)
+end
+
 to-report unnest [xs]
   if empty? xs [report []]
   if is-list? (first xs) [report sentence (unnest first xs) (unnest (remove-item 0 xs))]
   report sentence (list (first xs)) (unnest (remove-item 0 xs))
+end
+
+to-report random-index [t]
+  report random (length (unnest t))
 end
 
 to-report insert-in-tree [tree1 index subtree]
@@ -373,23 +401,59 @@ to-report insert-in-tree [tree1 index subtree]
   )
 end
 
+to-report get-subtree-at [t index]
+  ( ifelse
+    index = 0 [report (list t index)]
+    length t = 1 [report (list t index)]
+    [ let i1 (get-subtree-at (item 1 t) (index - 1))
+      set index (item 1 i1)
+      if index = 0 [report i1]
+
+      let i2 (get-subtree-at (item 2 t) (index - 1))
+      set index (item 1 i2)
+      if index = 0 [report i2]
+
+      if first t = "PROGN3"
+      [ let i3 (get-subtree-at (item 3 t) (index - 1))
+        set index (item 1 i3)
+        if index = 0 [report i3] ]
+      report (list t index)
+    ]
+  )
+end
+
+to-report valid-tree [t depth]
+  report (get-depth t) <= depth
+end
+
+to-report get-depth [t]
+  ifelse length t = 1
+  [report 0]
+  [ let d1 get-depth (item 1 t)
+    let d2 get-depth (item 2 t)
+    ifelse first t = "PROGN3"
+    [ let d3 get-depth (item 3 t)
+      report max (list d1 d2 d3) ]
+    [ report max (list d1 d2) ] ]
+end
+
 ;; TODO: Eliminar esta función
-to test-insert-in-tree
-  let t (create-tree 3)
-  show "original"
-  show t
+to test
+  let depth 3
 
-  let index random (length (unnest t))
-  show "index"
-  show index
+  let t1 (create-tree depth)
+  show "t1"
+  show t1
 
-  let subtree (create-tree 3)
-  show "subtree"
-  show subtree
+  let t2 (create-tree depth)
+  show "t2"
+  show t2
 
-  let modified (insert-in-tree t index subtree)
-  show "result"
-  show (item 0 modified)
+  let childs (sexual-reproduction t1 t2)
+  show "c1"
+  show (item 0 childs)
+  show "c2"
+  show (item 1 childs)
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
