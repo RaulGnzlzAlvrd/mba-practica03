@@ -1,3 +1,5 @@
+extensions [ rnd ]
+
 ;; BEST SOLUTION BY KOZA
 ;;if_food_ahead(ant.move_forward, prog3(ant.turn_left,
 ;;             prog2(ant.if_food_ahead(ant.move_forward, ant.turn_right),
@@ -125,8 +127,8 @@ to create-next-gen
 
   while [count (trees with [current-gen]) < population-size]
   [ ifelse random-float 1 < pc
-    [ let p1 one-of trees with [not current-gen]
-      let p2 one-of trees with [not current-gen]
+    [ let p1 rnd:weighted-one-of (trees with [not current-gen]) [nfood]
+      let p2 rnd:weighted-one-of (trees with [not current-gen]) [nfood]
 
       let instructions1 []
       let instructions2 []
@@ -153,7 +155,7 @@ to create-next-gen
         ]
       ]
     ]
-    [ let p1 one-of trees with [not current-gen]
+    [ let p1 rnd:weighted-one-of (trees with [not current-gen]) [nfood]
       ask p1 [hatch 1 [
         set current-gen true
         set nmoves 0
@@ -497,8 +499,8 @@ to-report get-depth [t]
     let d2 get-depth (item 2 t)
     ifelse first t = "PROGN3"
     [ let d3 get-depth (item 3 t)
-      report max (list d1 d2 d3) ]
-    [ report max (list d1 d2) ] ]
+      report max (list d1 d2 d3) + 1]
+    [ report max (list d1 d2) + 1] ]
 end
 
 ;; TODO: Eliminar esta función
@@ -652,7 +654,7 @@ max-allowed-moves
 max-allowed-moves
 100
 1000
-550.0
+400.0
 50
 1
 NIL
@@ -667,7 +669,7 @@ pc
 pc
 0
 1
-0.8
+0.9
 0.01
 1
 NIL
