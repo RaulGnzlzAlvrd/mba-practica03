@@ -3,54 +3,51 @@
 ;;             prog2(ant.if_food_ahead(ant.move_forward, ant.turn_right),
 ;;             prog2(ant.turn_right, prog2(ant.turn_left, ant.turn_right))),
 ;;             prog2(ant.if_food_ahead(ant.move_forward, ant.turn_left), ant.move_forward)))
-globals[
-  current-gen
-  old-gen
-]
 
-patches-own[food]
-breed [ants ant]
+globals
+[ current-gen
+  old-gen
+  generation-count ]
+
+patches-own [food]
+
 breed [trees tree]
-trees-own[
-  fitness
+trees-own
+[ fitness
   instructions
   nmoves
-  nfood
-]
-
+  nfood ]
 
 to-report best-tree
- let best [
-    "IF_FOOD_AHEAD" ["MOVE"] [
-        "PROGN3" ["LEFT"] [
-            "PROGN2" ["IF_FOOD_AHEAD" ["MOVE"] ["RIGHT"]][
-                "PROGN2"["RIGHT"][
-                "PROGN2"["LEFT"]["RIGHT"]
-                ]
-            ]
-        ]
-      ["PROGN2"["IF_FOOD_AHEAD"["MOVE"]["LEFT"]]["MOVE"]]
-    ]
-  ]
+ let best
+  ["IF_FOOD_AHEAD"
+    ["MOVE"]
+    ["PROGN3"
+      ["LEFT"]
+      ["PROGN2"
+        ["IF_FOOD_AHEAD" ["MOVE"] ["RIGHT"]]
+        ["PROGN2"
+          ["RIGHT"]
+          ["PROGN2" ["LEFT"] ["RIGHT"]]]]
+      ["PROGN2"
+        ["IF_FOOD_AHEAD" ["MOVE"] ["LEFT"]]
+        ["MOVE"]]]]
  report best
 end
 
 to setup
   clear-all
   reset-ticks
-  ask patches[
-    set pcolor white
-  ]
-  create-ants 1[
-    setxy 0 0
-    set shape "bug"
-    set heading 90
-  ]
+
+  ask patches
+  [ set pcolor white
+    set food false ]
   create-grid
-  create-trees population-size[
-    create-agent-tree
-  ]
-  show current-gen
+
+  create-trees population-size
+  [ set instructions (create-tree initial-depth)
+    set heading 90 ]
+  set current-gen trees
 end
 
 to turn-left
@@ -67,23 +64,10 @@ end
 
 to-report if-food-ahead
   let val false
-  ask patch-ahead 1 [
-    if food = true
-    [set val true]
-  ]
+  ask patch-ahead 1
+  [ if food = true
+    [ set val true ] ]
   report val
-end
-
-to progn2 [fn1 fn2]
-  run fn1
-  run fn2
-end
-
-
-to progn3 [fn1 fn2 fn3]
-  run fn1
-  run fn2
-  run fn3
 end
 
 to-report functional-set
@@ -103,214 +87,47 @@ to-report create-tree [depth]
     [ report (list function (create-tree (depth - 1))  (create-tree (depth - 1)) (create-tree (depth - 1))) ] ]
 end
 
-to create-agent-tree
-  set instructions (create-tree 4)
-end
-
-to create-population [psize dtree]
-  set current-gen []
-  while [psize > 0][
-    let ctree create-tree dtree
-    set psize (psize - 1)
-    set current-gen  lput  ctree current-gen
-  ]
-end
-
-
 to go
-  ;;let tree create-tree 3
-  ask ants[
-    ;;eval-tree best-tree
-
-  ]
-  ask trees[
-    ;;eval-tree instructions
-    let food-list create-array-food
-    eval-list-tree best-tree  food-list
-  ]
+  let gen trees with [nmoves < max-allowed-moves]
+  if not any? gen [stop]
+  ask gen
+  [ while [nmoves < max-allowed-moves] [eval-tree instructions]
+    create-grid ]
+  tick
 end
 
 to exec-terminals [name]
-  ifelse name = "LEFT"[
-    turn-left
-  ]
-  [ ifelse name = "RIGHT" [
-      turn-right
-    ]
-    [if name = "MOVE" [move]]
-  ]
-
+  ( ifelse
+    name = "LEFT"  [turn-left]
+    name = "RIGHT" [turn-right]
+    name = "MOVE"  [move] )
 end
 
 to eval-tree [treel] ;; tree of type list GRAPHIC EVAL
-  ifelse length treel = 1[
-    exec-terminals first treel
-    ;; IF_FOOD_AHEAD
-    ask patch-here [
-      if food = true [
-        empty
-
-      ]
-    ]
-  ]
-  [ ifelse first treel = "PROGN3"[
-      eval-tree (item 1 treel) eval-tree (item 2 treel) eval-tree (item 3 treel)
-    ]
-    [ifelse first treel = "PROGN2"
-      [eval-tree (item 1 treel) eval-tree (item 2 treel)]
-      [
-        let food-ahead if-food-ahead
-        ifelse food-ahead
-        [ eval-tree (item 1 treel) ]
-        [ eval-tree (item 2 treel) ]
-      ]
-    ]
-
-  ]
+  if nmoves >= max-allowed-moves [stop]
+  ( ifelse
+    length treel = 1
+    [ exec-terminals first treel
+      set nmoves (nmoves + 1)
+      let food-here false
+      ask patch-here
+      [ if food = true
+        [ set food-here true
+          empty ] ]
+      if food-here [set nfood (nfood + 1)]]
+    first treel = "PROGN3"
+    [ eval-tree (item 1 treel)
+      eval-tree (item 2 treel)
+      eval-tree (item 3 treel) ]
+    first treel = "PROGN2"
+    [ eval-tree (item 1 treel)
+      eval-tree (item 2 treel) ]
+    first treel = "IF_FOOD_AHEAD"
+    [ let food-ahead if-food-ahead
+      ifelse food-ahead
+      [eval-tree (item 1 treel)]
+      [eval-tree (item 2 treel)] ] )
 end
-
-to eval-list-tree [treel food-list] ;; tree of type list
-  ifelse length treel = 1[
-    exec-terminals first treel
-    ;; COUT terminal move
-    set nmoves nmoves + 1
-    ;; IF_FOOD_AHEAD with list
-    let currentcoord list ycor xcor
-    if member? currentcoord  food-list[
-      set nfood nfood + 1
-      show food-list
-      set food-list remove currentcoord food-list
-      show food-list
-    ]
-  ]
-  [ ifelse first treel = "PROGN3"[
-      eval-list-tree (item 1 treel) food-list eval-list-tree (item 2 treel) food-list eval-list-tree (item 3 treel) food-list
-    ]
-    [ifelse first treel = "PROGN2"
-      [eval-list-tree (item 1 treel) food-list eval-list-tree (item 2 treel) food-list]
-      [
-        let food-ahead if-food-ahead
-        ifelse food-ahead
-        [ eval-list-tree (item 1 treel) food-list ]
-        [ eval-list-tree (item 2 treel) food-list ]
-      ]
-    ]
-  ]
-
-end
-
-to-report fit [movesc foodc]
-  if movesc < 400[
-    report foodc
-  ]
-  report 0
-end
-
-to-report create-array-food
-  let food-list [ [1 0   ]   [2 0   ]   [3 0   ]   [3 -1  ]   [3 -2  ]   [3 -3  ]   [3 -4  ]   [3 -5  ]
-   [4 -5  ]   [5 -5  ]
-   [6 -5  ]
-   [8 -5  ]
-   [9 -5  ]
-   [10 -5 ]
-   [11 -5 ]
-   [12 -5 ]
-   [12 -6 ]
-   [12 -7 ]
-   [12 -8 ]
-   [12 -9 ]
-   [12 -11]
-   [12 -12]
-   [12 -13]
-   [12 -14]
-   [12 -17]
-   [12 -18]
-   [12 -19]
-   [12 -20]
-   [12 -21]
-   [12 -22]
-   [12 -23]
-   [11 -24]
-   [10 -24]
-   [9  -24]
-   [8  -24]
-   [7  -24]
-   [4  -24]
-   [3  -24]
-   [1  -25]
-   [1  -26]
-   [1  -27]
-   [1  -28]
-   [2  -30]
-   [3  -30]
-   [4  -30]
-   [5  -30]
-   [7  -29]
-   [7  -28]
-   [8  -27]
-   [9  -27]
-   [10 -27]
-   [11 -27]
-   [12 -27]
-   [13 -27]
-   [14 -27]
-   [16 -26]
-   [16 -25]
-   [16 -24]
-   [16 -21]
-   [16 -20]
-   [16 -19]
-   [16 -18]
-   [17 -15]
-   [20 -14]
-   [20 -13]
-
-
-   [20 -10]
-   [20 -9 ]
-   [20 -8 ]
-   [20 -7 ]
-
-
-   [21 -5 ]
-   [22 -5 ]
-
-
-   [24 -4 ]
-   [24 -3 ]
-
-
-   [25 -2 ]
-   [26 -2 ]
-   [27 -2 ]
-
-
-   [29 -3 ]
-   [29 -4 ]
-
-
-   [29 -6 ]
-
-
-   [29 -9 ]
-
-
-   [29 -12]
-
-
-   [28 -14]
-   [27 -14]
-   [26 -14]
-
-
-   [23 -15]
-   [24 -18]
-   [27 -19]
-   [26 -22]
-   [23 -23]  ]
-  report food-list
-end
-
 
 to create-grid
   ask patch 1 0   [food-trail] ;;1
@@ -525,9 +342,9 @@ to empty
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-210
+235
 23
-801
+826
 615
 -1
 -1
@@ -548,7 +365,7 @@ GRAPHICS-WINDOW
 0
 0
 1
-ticks
+generation
 30.0
 
 BUTTON
@@ -575,7 +392,7 @@ BUTTON
 115
 NIL
 Go
-T
+NIL
 1
 T
 OBSERVER
@@ -594,7 +411,7 @@ population-size
 population-size
 10
 600
-10.0
+500.0
 10
 1
 NIL
@@ -628,6 +445,21 @@ max-depth
 1
 1
 levels
+HORIZONTAL
+
+SLIDER
+11
+420
+215
+453
+max-allowed-moves
+max-allowed-moves
+100
+1000
+550.0
+50
+1
+NIL
 HORIZONTAL
 
 @#$#@#$#@
