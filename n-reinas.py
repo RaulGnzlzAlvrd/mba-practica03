@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import random
 
 # Parametros iniciales
@@ -13,9 +14,13 @@ SEMILLA = 10
 # La semilla permite obtener la misma secuencia de numeros aleatorios
 # random.seed(SEMILLA)
 
+sum = 0
 # Función auxiliar para ordenar usando la función fitness
 def sort_eval(p):
-  return evalua(p)
+  eval = evalua(p)
+  global sum
+  sum += eval
+  return eval
 
 # Función fitness para una configuración p. q(p) = x | x es el numero de amenazas
 def evalua(p):
@@ -48,6 +53,10 @@ def swap(l, a, b):
 reinas = [*range(1, N+1)]
 poblacion = []
 
+data = [None] * 2
+data[0] = [] # Lista para guardar la mejor evaluación de configuración en su generación
+data[1] = [] # Lista para guardar los promedios de las evaluaciones de las configuraciones en su generación
+
 # Se agregan N_POBLACION permutaciones aleatorias a la poblacion
 for i in range(0, N_POBLACION):
   random.shuffle(reinas)
@@ -55,6 +64,14 @@ for i in range(0, N_POBLACION):
 
 # Se realiza el ciclo del algoritmo genetico a lo más MAX_ITER veces
 for generacion in range(0, MAX_ITER):
+
+  # Condición de terminación: si existe una configuración en la población
+  # cuya evaluación fitness es 0 (no hay amenazas)
+  if evalua(poblacion[0]) == 0:
+    print("Generacion: ", generacion)
+    print("Solucion: ", poblacion[0])
+    break
+
   # Se seleccionan los N_PADRES de manera aleatoria
   padres = []
   for i in range(0, N_PADRES):
@@ -93,13 +110,25 @@ for generacion in range(0, MAX_ITER):
   # Se agregan los hijos a la poblacion y se evalua toda la poblacion
   # para eliminar los peores
   poblacion = poblacion + hijos
+  sum = 0
   poblacion.sort(key=sort_eval)
   for i in range(0,len(hijos)):
     poblacion.pop()
 
-  # Condición de terminación: si existe una configuración en la población
-  # cuya evaluación fitness es 0 (no hay amenazas)
-  if evalua(poblacion[0]) == 0:
-    print("Generacion: ", generacion)
-    print("Solucion: ", poblacion[0])
-    break
+  data[0].append(evalua(poblacion[0]))
+  avg = sum / N_POBLACION
+  data[1].append(avg)
+
+if evalua(poblacion[0]) > 0:
+    print("No se encontró una solución en el límite de iteraciones.")
+
+plt.plot(data[0], label="Mejor aptitud")
+plt.ylabel('fitness')
+plt.xlabel('generación')
+
+plt.plot(data[1], label='Promedio')
+plt.ylabel('fitness')
+plt.xlabel('generación')
+
+plt.legend()
+plt.show()
